@@ -16,8 +16,8 @@ def CutAndLoadPdf(start,end):
     
     cut_filename = f'cut.pdf'
     with open(cut_filename,'wb') as out:
-            pdf_writer.write(out)
-    
+        pdf_writer.write(out)
+
     pages = convert_from_path(cut_filename)
 
 def resizeCvImage(cvimage,newsizex=300):
@@ -58,70 +58,83 @@ def FindMatches(pages):
                 #add to the result array, and quit
                 pot.append([open_cv_image,(curr_sequence*maxpagecount)+k])
                 break
+def main():
+    t = time.time()
 
-t = time.time()
+    pdf_in_path = str(sys.argv[1])
+    template_in_path = str(sys.argv[2])
 
-pages = [] #where each the PIL images of each sequence is stored
-pdf_reader = PdfFileReader(open(str(sys.argv[1]), 'rb'))
+    pages = [] #where each the PIL images of each sequence is stored
+    pdf_reader = PdfFileReader(open(pdf_in_path, 'rb'))
 
-indextemp = cv.imread(str(sys.argv[2]))
-indextemp = cv.cvtColor(indextemp, cv.COLOR_BGR2GRAY)
-indextemp = cv.adaptiveThreshold(indextemp, 255,cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY_INV,9,11)
-kernel = cv.getStructuringElement(cv.MORPH_CROSS,(3,3))
-
-# number of iterations when dilating image
-try:
-    it = sys.argv[4] 
-except:
-    it = 2
-
-try:
-    difference = sys.argv[3]
-except:
-    difference = 30
+    indextemp = cv.imread(template_in_path)
+    indextemp = cv.cvtColor(indextemp, cv.COLOR_BGR2GRAY)
+    indextemp = cv.adaptiveThreshold(indextemp, 255,cv.ADAPTIVE_THRESH_MEAN_C, cv.THRESH_BINARY_INV,9,11)
+    kernel = cv.getStructuringElement(cv.MORPH_CROSS,(3,3))
 
 
-indextemp = cv.dilate(indextemp,kernel,iterations = it)
-indextemp = resizeCvImage(indextemp)
-avg_ind = np.average(np.average(indextemp, axis=0),axis=0)
+    #here goes the UI
 
-pot = [] #where match results are stored
+    #these should be implemented inside
+    # try:
+    #     difference = sys.argv[3]
+    # except:
+    #     difference = 30
 
-pdf_pagecount = pdf_reader.getNumPages()
-#max number of pages in a batch
-maxpagecount = 100
-sequence = pdf_pagecount // maxpagecount
-curr_sequence = 0
-for i in range((sequence)):
-            curr_sequence = i      
-            CutAndLoadPdf((i*maxpagecount)+1,(i+1)*maxpagecount) #fills pages[] with PIL images from the pdf
-            FindMatches(pages) #adds matches to pot[]
-            print(i,"runtime:",1000*(time.time()-t),"ms")
-            t = time.time()
+    # # number of iterations when dilating image
+    # try:
+    #     it = sys.argv[4] 
+    # except:
+    #     it = 2
 
-remainder = pdf_pagecount - (sequence)*maxpagecount
-if remainder != 0:
-    curr_sequence += 1
-    CutAndLoadPdf((sequence*maxpagecount)+1,(sequence*maxpagecount)+remainder)
-    FindMatches(pages)
-    print("runtime:",1000*(time.time()-t),"ms")
 
-os.remove("cut.pdf")
 
-images = []
-for i,j in enumerate(pot):
-    img = cv.cvtColor(j[0], cv.COLOR_BGR2RGB)
-    img = Image.fromarray(img)
-    images.append(img)
-images[0].save("out.pdf", save_all=True, append_images=images[1:])
+    indextemp = cv.dilate(indextemp,kernel,iterations = it)
+    indextemp = resizeCvImage(indextemp)
+    avg_ind = np.average(np.average(indextemp, axis=0),axis=0)
 
-pdf_out = PdfFileWriter()
-pdf_reader = PdfFileReader(open("out.pdf", 'rb'))
-for i,k in enumerate(pot):
-    pdf_out.addPage(pdf_reader.getPage(i))
-    pdf_out.addBookmark(str(k[1]+2),i)
+    pot = [] #where match results are stored
 
-os.remove("out.pdf")
-output_f = f'output.pdf'
-with open(output_f,'wb') as out:
-    pdf_out.write(out)
+    pdf_pagecount = pdf_reader.getNumPages()
+    #max number of pages in a batch
+    maxpagecount = 100
+    sequence = pdf_pagecount // maxpagecount
+
+    curr_sequence = 0
+    for i in range((sequence)):
+        curr_sequence = i      
+        CutAndLoadPdf((i*maxpagecount)+1,(i+1)*maxpagecount) #fills pages[] with PIL images from the pdf
+        FindMatches(pages) #adds matches to pot[]
+        print(i,"runtime:",1000*(time.time()-t),"ms")
+        t = time.time()
+
+    remainder = pdf_pagecount - (sequence)*maxpagecount
+    if remainder != 0:
+        curr_sequence += 1
+        CutAndLoadPdf((sequence*maxpagecount)+1,(sequence*maxpagecount)+remainder)
+        FindMatches(pages)
+        print("runtime:",1000*(time.time()-t),"ms")
+
+    os.remove("cut.pdf")
+
+    images = []
+    for i,j in enumerate(pot):
+        img = cv.cvtColor(j[0], cv.COLOR_BGR2RGB)
+        img = Image.fromarray(img)
+        images.append(img)
+    images[0].save("out.pdf", save_all=True, append_images=images[1:])
+
+    pdf_out = PdfFileWriter()
+    pdf_reader = PdfFileReader(open("out.pdf", 'rb'))
+    for i,k in enumerate(pot):
+        pdf_out.addPage(pdf_reader.getPage(i))
+        pdf_out.addBookmark(str(k[1]+2),i)
+
+    os.remove("out.pdf")
+    output_f = f'output.pdf'
+    with open(output_f,'wb') as out:
+        pdf_out.write(out)
+
+main()
+
+#implement a ui where you can use a scale to adjust the preprocessor values while navigating the first 100 pages
