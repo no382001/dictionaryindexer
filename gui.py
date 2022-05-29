@@ -18,26 +18,52 @@ current_index = 0
 
 preproc = False
 
-kernel_options = ["cv.MORPH_CROSS","cv.MORPH_OPEN","cv.MORPH_CLOSE","cv.MORPH_GRADIENT","cv.MORPH_TOPHAT","cv.MORPH_BLACKHAT"]
 
-cv_kernel = cv.getStructuringElement(eval(kernel_options[0]),(3,3))
-        
+#--------START----------- adaptive threshold
+adaptiveOn = True
 adaptive_options = ["cv.ADAPTIVE_THRESH_MEAN_C","cv.ADAPTIVE_THRESH_GAUSSIAN_C"]
-
 cv_adaptive = eval(adaptive_options[0])
 
 thresh_options = ["cv.THRESH_BINARY_INV","cv.THRESH_BINARY"]
-
 cv_thresh =  eval(thresh_options[0])
+#--------END------------- adaptive threshold
 
-allowed_difference = 30
+
+#--------START----------- dilation
+dilationOn = True
 
 dilate_no_iteration = 2
+
+#--------END------------- dilation
+
+openingOn = True
+opening_no_iteration = 2
+
+closingOn = False
+closing_no_iteration = 2
+
+
+
+
+
+
+#--------START----------- kernel
+# kernel_options = ["cv.MORPH_CROSS"] #any other option wont work, bc kernel is 8bit?
+kernel_options = ["cv.MORPH_CROSS","cv.MORPH_OPEN","cv.MORPH_GRADIENT","cv.MORPH_TOPHAT","cv.MORPH_BLACKHAT"]
+cv_kernel = cv.getStructuringElement(eval(kernel_options[0]),np.uint8((3, 3)))
+#--------END------------- kernel
+
+
+
+
+
+
+allowed_difference = 30
 
 class App(tk.Frame):
     
     def preProcess(self):
-        global pages, current_index, cv_kernel, shown_image
+        global pages, current_index, cv_kernel, shown_image, adaptiveOn, openingOn, closingOn
 
         #converting PIL to np array
         nparray = np.array(pages[current_index])
@@ -45,11 +71,25 @@ class App(tk.Frame):
         nparray = nparray[:, :, ::-1].copy()
         #BGR to Grayscale
         open_cv_image = cv.cvtColor(nparray, cv.COLOR_BGR2GRAY)
+
         #applying threshold, making the image 2bits in color, and inverting the image
-        open_cv_image = cv.adaptiveThreshold(open_cv_image, 255,cv_adaptive,cv_thresh,9,11)
-        #dilating, to smudge visible elements, essentially normalizing the image
-        open_cv_image = cv.dilate(open_cv_image,cv_kernel,iterations = dilate_no_iteration)
+        #                                       src         maxVal    admeth  thmeth   blocksize    constant
+        if adaptiveOn:
+            open_cv_image = cv.adaptiveThreshold(open_cv_image, 255, cv_adaptive,cv_thresh,9,11)
         
+        #dilating, to smudge visible elements, essentially normalizing the image
+        if dilationOn:
+            open_cv_image = cv.dilate(open_cv_image,cv_kernel, iterations=dilate_no_iteration)
+        
+        if openingOn:
+            open_cv_image = cv.morphologyEx(open_cv_image, cv.MORPH_OPEN, cv_kernel, iterations=dilate_no_iteration)
+
+        if closingOn:
+            open_cv_image = cv.morphologyEx(open_cv_image, cv.MORPH_CLOSE, cv_kernel, iterations=dilate_no_iteration)
+
+        #create a save state of transformations
+        #and dropdown menu selects these morph transformations, well hidden
+
         return open_cv_image
 
         #resizing image to a lesser size for time efficiency
@@ -90,15 +130,19 @@ class App(tk.Frame):
 
         kernel_dropdown = tk.OptionMenu(parent, default_kernel,*kernel_options,command=self.kernelSelected)
         kernel_dropdown.configure(width = 20, activebackground = "#33B5E5")
-        kernel_dropdown_window = self.canvas.create_window(((wwidth/2),wheight-200), window=kernel_dropdown)
+        kernel_dropdown_window = self.canvas.create_window(((wwidth/2),wheight-180), window=kernel_dropdown)
 
         global adaptive_options
         default_adaptive = tk.StringVar()
         default_adaptive.set(adaptive_options[0])
 
+        adaptiveon_button = tk.Button(parent, text="toggle_adaptive",command=self.toggleAdaptive)
+        adaptiveon_button.configure(width = 10, activebackground = "#33B5E5")
+        adaptiveon_button_window = self.canvas.create_window(((wwidth/2)+170,wheight-210), window=adaptiveon_button)
+
         adaptive_dropdown = tk.OptionMenu(parent, default_adaptive,*adaptive_options,command=self.adaptiveSelected)
         adaptive_dropdown.configure(width = 20, activebackground = "#33B5E5")
-        adaptive_dropdown_window = self.canvas.create_window(((wwidth/2),wheight-220), window=adaptive_dropdown)
+        adaptive_dropdown_window = self.canvas.create_window(((wwidth/2),wheight-210), window=adaptive_dropdown)
 
         global thresh_options
         default_thresh = tk.StringVar()
@@ -107,6 +151,22 @@ class App(tk.Frame):
         thresh_dropdown = tk.OptionMenu(parent, default_thresh,*thresh_options,command=self.threshSelected)
         thresh_dropdown.configure(width = 20, activebackground = "#33B5E5")
         thresh_dropdown_window = self.canvas.create_window(((wwidth/2),wheight-240), window=thresh_dropdown)
+
+        dilateon_button = tk.Button(parent, text="toggle_dilate",command=self.toggleDilate)
+        dilateon_button.configure(width = 10, activebackground = "#33B5E5")
+        dilateon_button_window = self.canvas.create_window(((wwidth/2)+170,wheight-240), window=dilateon_button)
+
+        openingon_button = tk.Button(parent, text="toggle_opening",command=self.toggleOpening)
+        openingon_button.configure(width = 10, activebackground = "#33B5E5")
+        openingon_button_window = self.canvas.create_window(((wwidth/2)+170,wheight-280), window=openingon_button)
+
+        closingon_button = tk.Button(parent, text="toggle_closing",command=self.toggleClosing)
+        closingon_button.configure(width = 10, activebackground = "#33B5E5")
+        closingon_button_window = self.canvas.create_window(((wwidth/2)+170,wheight-320), window=closingon_button)
+
+
+
+
 
     def drawImage(self):
         global current_index, shown_image
@@ -154,6 +214,7 @@ class App(tk.Frame):
         self.canvas = tk.Canvas(self.parent, width = wwidth, height = wheight - dialogmargin, bg = "white")
         self.canvas.grid(row=0, column=0, sticky='nsew')
 
+#----------------START--------------------- buttons
     def left(self):
         global current_index
         current_index -= 1
@@ -167,7 +228,6 @@ class App(tk.Frame):
     def togglePP(self):
         global preproc
         preproc = not preproc
-        print("preprocess is",preproc)
         self.drawImage()
 
     def dilateScaleChanged(self,passed):
@@ -177,7 +237,7 @@ class App(tk.Frame):
 
     def kernelSelected(self,passed):
         global cv_kernel
-        cv_kernel = eval(passed)
+        cv_kernel = cv.getStructuringElement(eval(passed),np.uint8((3, 3)))
         self.drawImage()
 
     def adaptiveSelected(self,passed):
@@ -189,6 +249,28 @@ class App(tk.Frame):
         global cv_thresh
         cv_thresh = eval(passed)
         self.drawImage()
+
+    def toggleAdaptive(self):
+        global adaptiveOn
+        adaptiveOn = not adaptiveOn
+        self.drawImage()
+
+    def toggleDilate(self):
+        global dilationOn
+        dilationOn = not dilationOn
+        self.drawImage()
+
+    def toggleOpening(self):
+        global openingOn
+        openingOn = not openingOn
+        self.drawImage()
+
+    def toggleClosing(self):
+        global closingOn
+        closingOn = not closingOn
+        self.drawImage()
+
+#----------------END--------------------- buttons
         
 
         
