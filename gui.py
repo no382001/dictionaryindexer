@@ -31,7 +31,6 @@ cv_thresh =  eval(thresh_options[0])
 
 #--------START----------- dilation
 dilationOn = True
-
 dilate_no_iteration = 2
 
 #--------END------------- dilation
@@ -44,9 +43,6 @@ closing_no_iteration = 2
 
 
 
-
-
-
 #--------START----------- kernel
 # kernel_options = ["cv.MORPH_CROSS"] #any other option wont work, bc kernel is 8bit?
 kernel_options = ["cv.MORPH_CROSS","cv.MORPH_OPEN","cv.MORPH_GRADIENT","cv.MORPH_TOPHAT","cv.MORPH_BLACKHAT"]
@@ -55,13 +51,10 @@ cv_kernel = cv.getStructuringElement(eval(kernel_options[0]),np.uint8((3, 3)))
 
 
 
-
-
-
 allowed_difference = 30
 
 class App(tk.Frame):
-    
+    #---------------------------START--------------------PREPROCESS PROCEDURES------------------------- 
     def preProcess(self):
         global pages, current_index, cv_kernel, shown_image, adaptiveOn, openingOn, closingOn
 
@@ -76,16 +69,13 @@ class App(tk.Frame):
         #                                       src         maxVal    admeth  thmeth   blocksize    constant
         if adaptiveOn:
             open_cv_image = cv.adaptiveThreshold(open_cv_image, 255, cv_adaptive,cv_thresh,9,11)
-        
         #dilating, to smudge visible elements, essentially normalizing the image
         if dilationOn:
             open_cv_image = cv.dilate(open_cv_image,cv_kernel, iterations=dilate_no_iteration)
-        
         if openingOn:
-            open_cv_image = cv.morphologyEx(open_cv_image, cv.MORPH_OPEN, cv_kernel, iterations=dilate_no_iteration)
-
+            open_cv_image = cv.morphologyEx(open_cv_image, cv.MORPH_OPEN, cv_kernel, iterations=opening_no_iteration)
         if closingOn:
-            open_cv_image = cv.morphologyEx(open_cv_image, cv.MORPH_CLOSE, cv_kernel, iterations=dilate_no_iteration)
+            open_cv_image = cv.morphologyEx(open_cv_image, cv.MORPH_CLOSE, cv_kernel, iterations=closing_no_iteration)
 
         #create a save state of transformations
         #and dropdown menu selects these morph transformations, well hidden
@@ -94,78 +84,68 @@ class App(tk.Frame):
 
         #resizing image to a lesser size for time efficiency
         #open_cv_image = resizeCvImage(open_cv_image)
+    
+    #---------------------------END-------------------PREPROCESS PROCEDURES------------------------- 
 
     def __init__(self, parent): 
         tk.Frame.__init__(self, parent) #parent is the main canvas
 
-        self.createCoordinates(parent)
+        self.parent = parent
         self.createCanvas()
 
-        filebutton = tk.Button(parent, text="open pdf",command=self.openFileDialog) #wont appear outside of canvas probably a class problem
-        filebutton.configure(width = 10, activebackground = "#33B5E5")
-        filebutton_window = self.canvas.create_window((wwidth/2,wheight-45), window=filebutton)
+        #--------START--------------------------CONSTRUCT BUTTONS, SCALES AND LABELS---------------------------------
 
-        leftbutton = tk.Button(parent, text="<",command=self.left)
-        leftbutton.configure(width = 5, activebackground = "#33B5E5")
-        leftbutton_window = self.canvas.create_window(((wwidth/2)-100,wheight-45), window=leftbutton)
-
-        rightbutton = tk.Button(parent, text=">",command=self.right)
-        rightbutton.configure(width = 5, activebackground = "#33B5E5")
-        rightbutton_window = self.canvas.create_window(((wwidth/2)+100,wheight-45), window=rightbutton)
-
-        applypreproc = tk.Button(parent, text="toggle preproc",command=self.togglePP)
-        applypreproc.configure(width = 10, activebackground = "#33B5E5")
-        applypreproc = self.canvas.create_window(((wwidth/2),wheight-80), window=applypreproc)
-
-
-        dilate_scale =  tk.Scale(parent,from_= 0,to = 100, orient='horizontal', command=self.dilateScaleChanged)
-        dilate_scale.set(dilate_no_iteration)
-        dilate_scale.configure(width = 10, activebackground = "#33B5E5")
-        dilate_scale_window = self.canvas.create_window(((wwidth/2),wheight-150), window=dilate_scale)
-
-        
-        global kernel_options
-        default_kernel = tk.StringVar()
-        default_kernel.set(kernel_options[0])
-
-        kernel_dropdown = tk.OptionMenu(parent, default_kernel,*kernel_options,command=self.kernelSelected)
-        kernel_dropdown.configure(width = 20, activebackground = "#33B5E5")
-        kernel_dropdown_window = self.canvas.create_window(((wwidth/2),wheight-180), window=kernel_dropdown)
-
+        framedata = [
+                    [0,   "kernel", True],
+                    [1,   "adaptive", True],
+                    [2,   "adaptive_on", True],
+                    [3,   "thresh", True],
+                    [4,   "dilate_o", False],
+                    [5,   "opening_o", True],
+                    [6,   "closing_o", True],
+                    [7,   "closing_o", True],
+                                            ]
         global adaptive_options
         default_adaptive = tk.StringVar()
         default_adaptive.set(adaptive_options[0])
-
-        adaptiveon_button = tk.Button(parent, text="toggle_adaptive",command=self.toggleAdaptive)
-        adaptiveon_button.configure(width = 10, activebackground = "#33B5E5")
-        adaptiveon_button_window = self.canvas.create_window(((wwidth/2)+170,wheight-210), window=adaptiveon_button)
-
-        adaptive_dropdown = tk.OptionMenu(parent, default_adaptive,*adaptive_options,command=self.adaptiveSelected)
-        adaptive_dropdown.configure(width = 20, activebackground = "#33B5E5")
-        adaptive_dropdown_window = self.canvas.create_window(((wwidth/2),wheight-210), window=adaptive_dropdown)
+        tk.Label(parent,text="aaa").grid(row=0, column=3)
+        adaptiveon_button = tk.Button(parent, text="toggle_adaptive",command=self.toggleAdaptive).grid(row=0,column=1,sticky="ne")
+        adaptive_dropdown = tk.OptionMenu(parent, default_adaptive,*adaptive_options,command=self.adaptiveSelected).grid(row=0,column=2,sticky="ne")
 
         global thresh_options
         default_thresh = tk.StringVar()
         default_thresh.set(thresh_options[0])
+        thresh_dropdown = tk.OptionMenu(parent, default_thresh,*thresh_options,command=self.threshSelected).grid(row=0,column=3,sticky="ne")
+        
+        global kernel_options
+        default_kernel = tk.StringVar()
+        default_kernel.set(kernel_options[0])
+        kernel_dropdown = tk.OptionMenu(parent, default_kernel,*kernel_options,command=self.kernelSelected).grid(row=1,column=1,sticky="ne")
+        dilateon_button = tk.Button(parent, text="toggle_dilate",command=self.toggleDilate).grid(row=2,column=1,sticky="ne")
+        dilate_scale = tk.Scale(parent,from_= 0,to = 100, orient='horizontal', command=self.dilateScaleChanged)
+        dilate_scale.set(dilate_no_iteration)
+        dilate_scale.grid(row=2,column=2,sticky="ne")
 
-        thresh_dropdown = tk.OptionMenu(parent, default_thresh,*thresh_options,command=self.threshSelected)
-        thresh_dropdown.configure(width = 20, activebackground = "#33B5E5")
-        thresh_dropdown_window = self.canvas.create_window(((wwidth/2),wheight-240), window=thresh_dropdown)
+        openingon_button = tk.Button(parent, text="toggle_opening",command=self.toggleOpening).grid(row=3,column=1,sticky="ne")
+        opening_scale = tk.Scale(parent,from_= 0,to = 100, orient='horizontal', command=self.openingScaleChanged).grid(row=3,column=2,sticky="ne")
 
-        dilateon_button = tk.Button(parent, text="toggle_dilate",command=self.toggleDilate)
-        dilateon_button.configure(width = 10, activebackground = "#33B5E5")
-        dilateon_button_window = self.canvas.create_window(((wwidth/2)+170,wheight-240), window=dilateon_button)
+        closingon_button = tk.Button(parent, text="toggle_closing",command=self.toggleClosing).grid(row=4,column=1,sticky="ne")
+        closing_scale = tk.Scale(parent,from_= 0,to = 100, orient='horizontal', command=self.closingScaleChanged).grid(row=4,column=2,sticky="ne")
 
-        openingon_button = tk.Button(parent, text="toggle_opening",command=self.toggleOpening)
-        openingon_button.configure(width = 10, activebackground = "#33B5E5")
-        openingon_button_window = self.canvas.create_window(((wwidth/2)+170,wheight-280), window=openingon_button)
+        filebutton = tk.Button(parent, text="open pdf",command=self.openFileDialog) #wont appear outside of canvas probably a class problem
+        filebutton_window = self.canvas.create_window((wwidth/2,wheight-45), window=filebutton)
 
-        closingon_button = tk.Button(parent, text="toggle_closing",command=self.toggleClosing)
-        closingon_button.configure(width = 10, activebackground = "#33B5E5")
-        closingon_button_window = self.canvas.create_window(((wwidth/2)+170,wheight-320), window=closingon_button)
+        leftbutton = tk.Button(parent, text="<",command=self.left)
+        leftbutton_window = self.canvas.create_window(((wwidth/2)-100,wheight-45), window=leftbutton)
+
+        rightbutton = tk.Button(parent, text=">",command=self.right)
+        rightbutton_window = self.canvas.create_window(((wwidth/2)+100,wheight-45), window=rightbutton)
+
+        applypreproc = tk.Button(parent, text="toggle preproc",command=self.togglePP)
+        applypreproc = self.canvas.create_window(((wwidth/2),wheight-80), window=applypreproc)
 
 
-
+        #--------END--------------------------CONSTRUCT BUTTONS, SCALES AND LABELS----------------------------------
 
 
     def drawImage(self):
@@ -193,7 +173,7 @@ class App(tk.Frame):
             pdf_writer.write(out)
 
         pages = convert_from_path(cut_filename)
-        os.remove("cut.pdf")#                       use /tmp instead
+        os.remove("cut.pdf")#                       use /tmp instead, or no local storage at all
         print("pages loaded",len(pages))
 
     def openFileDialog(self):
@@ -202,19 +182,12 @@ class App(tk.Frame):
         self.CutAndLoadPdf(1,20,filename)
         self.drawImage()
 
-    def createCoordinates(self, parent):
-        self.parent = parent
-        self.rectx0 = 0
-        self.recty0 = 0
-        self.rectx1 = 0
-        self.recty1 = 0
-        self.rectid = None
-
     def createCanvas(self):
         self.canvas = tk.Canvas(self.parent, width = wwidth, height = wheight - dialogmargin, bg = "white")
-        self.canvas.grid(row=0, column=0, sticky='nsew')
+        self.canvas.grid(row=0, column=0, rowspan=100, sticky='nsew')
 
 #----------------START--------------------- buttons
+    
     def left(self):
         global current_index
         current_index -= 1
@@ -233,6 +206,16 @@ class App(tk.Frame):
     def dilateScaleChanged(self,passed):
         global dilate_no_iteration
         dilate_no_iteration = int(passed)
+        self.drawImage()
+
+    def openingScaleChanged(self,passed):
+        global opening_no_iteration
+        opening_no_iteration = int(passed)
+        self.drawImage()
+
+    def closingScaleChanged(self,passed):
+        global closing_no_iteration
+        closing_no_iteration = int(passed)
         self.drawImage()
 
     def kernelSelected(self,passed):
@@ -273,10 +256,8 @@ class App(tk.Frame):
 #----------------END--------------------- buttons
         
 
-        
-
 if __name__ == "__main__":
     root = tk.Tk()
-    root.geometry(str(wheight)+"x"+str(wwidth))
+    root.geometry(str(wwidth+700)+"x"+str(wheight))
     app = App(root)
     root.mainloop()
