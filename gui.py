@@ -55,6 +55,7 @@ allowed_difference = 30
 
 class App(tk.Frame):
     #---------------------------START--------------------PREPROCESS PROCEDURES------------------------- 
+    
     def preProcess(self):
         global pages, current_index, cv_kernel, shown_image, adaptiveOn, openingOn, closingOn
 
@@ -95,16 +96,6 @@ class App(tk.Frame):
 
         #--------START--------------------------CONSTRUCT BUTTONS, SCALES AND LABELS---------------------------------
 
-        framedata = [
-                    [0,   "kernel", True],
-                    [1,   "adaptive", True],
-                    [2,   "adaptive_on", True],
-                    [3,   "thresh", True],
-                    [4,   "dilate_o", False],
-                    [5,   "opening_o", True],
-                    [6,   "closing_o", True],
-                    [7,   "closing_o", True],
-                                            ]
         global adaptive_options
         default_adaptive = tk.StringVar()
         default_adaptive.set(adaptive_options[0])
